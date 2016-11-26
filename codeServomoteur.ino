@@ -33,8 +33,8 @@ int compteur_prev =0;
   #define Right_INT 1 // correspond à la voie 2
   #define Left_A A4
   #define Left_B A5
-  #define Right_A 2
-  #define Right_B A1
+  #define Right_A A3 //c'etait A2
+  #define Right_B A2 //c'etait A1
  
   // associating output pins constants - depending on the microcontroller (ATMega328; check Arduino ATMega328 pinout for details)
   #define Status_Blue A3
@@ -101,7 +101,7 @@ int compteur_prev =0;
   int PIDmode;
   boolean PIDautoswitch;
   long lastPWM;
-  long errorThresholdSlow, errorThresholdStop;
+  long errorThresholdSlow, errorThresholdStop, errorThresholdHalf; //j'ajoute errorThresholdHalf
  
   // coordinate PID
   long leftTarget, rightTarget;
@@ -110,8 +110,8 @@ int compteur_prev =0;
   long leftDer, rightDer;
   long newLeftTarget, newRightTarget;
  
-  const int kPcoord = 5; // WARNING: the value is divided by 1024
-  const int kDcoord = 600; // WARNING: the value is divided by 1024
+  const int kPcoord = 30; // WARNING: the value is divided by 1024 //c'etait 5
+  const int kDcoord = 1000; // WARNING: the value is divided by 1024 //c'etait 600
  
   // speed PID
   long leftSpeed, rightSpeed;
@@ -120,11 +120,12 @@ int compteur_prev =0;
   long lastLeftSpeedError, lastRightSpeedError;
   long leftSpeedDer, rightSpeedDer;
   long leftSpeedInt, rightSpeedInt;
- 
+
+
   unsigned long currentTime, lastTime, deltaTime;
  
-  const int kPspeed = 25; // WARNING: the value is divided by 1024
-  const int kDspeed = 1000; // WARNING: the value is divided by 1024
+  const int kPspeed = 20; // WARNING: the value is divided by 1024 //c'etait 25
+  const int kDspeed = 2500; // WARNING: the value is divided by 1024 //c'etait 1000
   const int kIspeed = 1; // WARNING: the value is divided by 1024
  
   const long maxSpeedInt = 1024 / kIspeed + 1;
@@ -144,32 +145,30 @@ int compteur_prev =0;
   int tempPWMsign;
 
   void incr_right(){
- encoder_D_B = digitalRead(pin_D_B);
- if(encoder_D_B) {
+ encoder_G_B = digitalRead(pin_G_B);
+ if(encoder_G_B) {
         // B is high so clockwise
-        rightClicks ++;
+        leftClicks ++;
      
         
       }   
       else {
         // B is low so counter-clockwise      
      
-        rightClicks --;    }}
+        leftClicks--;    }}
 
 
   void incr_left(){
- encoder_G_B = digitalRead(pin_G_B);
- if(encoder_G_B) {
+ encoder_D_B = digitalRead(pin_D_B);
+ if(encoder_D_B) {
         // -B is high so cclockwise
         leftClicks --;
-     
-        
       }   
       else {
         // -B is low so clockwise      
-     
-        leftClicks ++;    }}
-
+        leftClicks ++;
+      }
+  }
         
   // ##### The initialization function, runs once at startup. #####
     
@@ -185,11 +184,11 @@ int compteur_prev =0;
     
     
     // Robot construction values
-    cpr = 5000; // number of counts per revolution of the encoder
+    cpr = 10000; // number of counts per revolution of the encoder //c'etait 5000
     wheelDiameter = 72; // ENCODER wheel diameter in milimeters
     leftWheelDiameter = 72; // LEFT ENCODER wheel diameter in milimeters
     rightWheelDiameter = 72; // RIGHT ENCODER wheel diameter in milimeters
-    trackWidth = 250; // the distance between the wheels in milimeters
+    trackWidth = 338.75; // the distance between the wheels in milimeters //c'etait 250
     motorWheelDiameter = 100; // MOTOR wheel diameter in milimeters
  
     // configuring I/O digital ports
@@ -234,7 +233,7 @@ int compteur_prev =0;
     // beginning the UART communication
     Serial.begin(UART_BAUD);
     Serial.setTimeout(1000);
- 
+    //***=======***///
     PIDmode = Coord_PD;
  
     errorThresholdSlow = (long) (cpr / 2);//by default the thresholder is half of a circle - you can chang it
