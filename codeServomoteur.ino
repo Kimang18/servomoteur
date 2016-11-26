@@ -143,6 +143,13 @@ int compteur_prev =0;
   float tempPWM;
   float tempDelta;
   int tempPWMsign;
+  long tempSpeed, intSpeed, extSpeed;
+  long tempRadius, intRadius, extRadius;
+  long intClicks, extClicks;
+  long tempAngleCircleInt;
+  float tempAngleCircle;
+  bool tempRotationMode;
+  float intDistance, extDistance;
 
   void incr_right(){
  encoder_G_B = digitalRead(pin_G_B);
@@ -634,7 +641,7 @@ void PIDautoSwitch()
 
 // va tout droit avec la distance en millimètre
 // et la vitesse en PWM entre 0-255
-void GoStraight(int distance, int Speed)
+void GoStraight(int distance, int Speed) //#136
 {
   tempDelta = (float) distance;
   tempDelta = tempDelta * (float) cpr / ((float)m_pi * (float) wheelDiameter);
@@ -728,6 +735,111 @@ void TurnRad(double angle, int Speed) //#137 angle in radians
  PIDautopreswitch = true;                   
 }
 
+//À tester
+void SetTargetSpeed(int leftRPM, int rightRPM) //#141
+{
+  leftTargetSpeed = leftRPM;
+  rightTargetSpeed = rightRPM;
+  leftTargetSpeed *= (long)cpr * (long)motorWheelDiameter;
+  rightTargetSpeed *= (long)cpr * (long)motorWheelDiameter;
+  leftTargetSpeed /= (60000 * (long)wheelDiameter);
+  rightTargetSpeed /= (60000 * (long)wheelDiameter);
+  leftBigPWM = 0;
+  rightBigPWM = 0;
+}
+
+//À tester
+void TurnCircle(int radius, float angle, int Speed) //#145
+{
+  while(angle < - m_pi) {angle += 2 * m_pi;}
+  while(angle > m_pi) {angle -= 2 * m_pi;
+  tempRadius = radius;
+  tempSpeed = Speed;
+  tempAngleCircle = angle;
+  //tempRadius = 400;
+  //tempSpeed = 60;
+  //tempAngleCircle = (float) -M_PI / 4;
+
+  // storing the rotation direction (false = left, true = right)
+  if (tempRadius < 0)
+  {
+    tempRotationMode = false;
+    tempRadius = 0-tempRadius;
+  }
+  else tempRotationMode = true;
+
+  // computing the internal and external turning radius
+  intRadius = tempRadius - (long) trackWidth/2;
+  extRadius = tempRadius + (long) trackWidth/2;
+
+  // computing the internal and external movement distances
+  intDistance = (float) intRadius * tempAngleCircle;
+  extDistance = (float) extRadius * tempAngleCircle;
+
+  // computing the internal and external click counts
+  tempDelta = (float) intDistance;
+  tempDelta = tempDelta * (float) cpr / ((float) M_PI * (float) wheelDiameter);
+  intClicks = (long) tempDelta;
+
+  tempDelta = (float) extDistance;
+  tempDelta = tempDelta * (float) cpr / ((float) M_PI * (float) wheelDiameter);
+  extClicks = (long) tempDelta;
+
+  // computing the average speed in clicks / second
+  tempSpeed = tempSpeed * (long) cpr;
+  tempSpeed = tempSpeed * (long) motorWheelDiameter;
+  tempSpeed = tempSpeed / 60000;
+  tempSpeed = tempSpeed / (long) wheelDiameter;
+
+  // computing the internal and external speed
+  intSpeed = tempSpeed * intRadius / tempRadius;
+  extSpeed = tempSpeed * extRadius / tempRadius;
+
+  // setting the movement to left or right
+  if (tempRotationMode == true)
+  {
+    leftTarget = leftClicks + extClicks;
+    rightTarget = rightClicks + intClicks;
+
+    // setting the movement backwards or forwards
+    if (tempAngleCircle > 0)
+    {
+      leftTargetSpeed = extSpeed;
+      rightTargetSpeed = intSpeed;
+    }
+    else
+    {
+      leftTargetSpeed = -extSpeed;
+      rightTargetSpeed = -intSpeed;
+    }
+  }
+  else
+  {
+    leftTarget = leftClicks + intClicks;
+    rightTarget = rightClicks + extClicks;
+
+    // setting the movement backwards or forwards
+    if (tempAngleCircle > 0)
+    {
+        leftTargetSpeed = intSpeed;
+        rightTargetSpeed = extSpeed;
+    }
+    else
+    {
+        leftTargetSpeed = -intSpeed;
+        rightTargetSpeed = -extSpeed;
+    }
+   }        
+
+   // PID start
+   errorThresholdSlow = (long) (cpr/2);
+
+   PIDmode = Speed_PD;
+   PIDautoswitch = true;
+   
+  } 
+}
+
 //cette fonction était écrite explicitement dans le loop()
 //je l'écris ici pour qu'il soit propre et facile à corriger.
 //il faut tester cette fonction, car je réécris de façons plus compact avec les appels
@@ -786,7 +898,7 @@ void asservit()
 }
 
 //ce qui vient dans ma tête, pas encore testé
-void asservit_polaire()
+void asservit_angulaire()
 {
   if(rightClicks == 0) return; //eviter diviser par zero
   if(leftClicks / rightClicks < -0.95 && leftClicks / rightClicks > -1.05) asservit();
@@ -1043,20 +1155,12 @@ void asservit_distance()
  
           case 141: // set the target speed :: SetSpeed() [4 args, 2 var]
             {
-              leftTargetSpeed = 256 * (long) cardArg[1] + (long) cardArg[0];
-              rightTargetSpeed = 256 * (long) cardArg[3] + (long) cardArg[2];
-              leftTargetSpeed = leftTargetSpeed - 32768;
-              rightTargetSpeed = rightTargetSpeed - 32768;
-              leftTargetSpeed = leftTargetSpeed * (long) cpr;
-              rightTargetSpeed = rightTargetSpeed * (long) cpr;
-              leftTargetSpeed = leftTargetSpeed * (long) motorWheelDiameter;
-              rightTargetSpeed = rightTargetSpeed * (long) motorWheelDiameter;
-              leftTargetSpeed = leftTargetSpeed / 60000;
-              rightTargetSpeed = rightTargetSpeed / 60000;
-              leftTargetSpeed = leftTargetSpeed / (long) wheelDiameter;
-              rightTargetSpeed = rightTargetSpeed / (long) wheelDiameter;
-              leftBigPWM = 0;
-              rightBigPWM = 0;
+              int leftRPM = 256 * (long) cardArg[1] + (long) cardArg[0];
+              int rightRPM = 256 * (long) cardArg[3] + (long) cardArg[2];
+              leftRPM = leftRPM - 32768;
+              rightRPM = rightRPM - 32768;
+              SetTargetSpeed(leftRPM, rightRPM);
+              
               break;
             }
  
