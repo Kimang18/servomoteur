@@ -897,24 +897,6 @@ void asservit()
   else setMotor(RIGHT, REVERSE, rightPWM);
 }
 
-//ce qui vient dans ma tête, pas encore testé
-void asservit_angulaire()
-{
-  if(rightClicks == 0) return; //eviter diviser par zero
-  if(leftClicks / rightClicks < -0.95 && leftClicks / rightClicks > -1.05) asservit();
-  else return;
-}
-
-//ce qui vient dans ma tête, pas encore testé
-void asservit_distance()
-{
-  //eviter diviser par zero
-  if(rightClicks != 0 && ((leftClicks / rightClicks > -0.95) || (leftClicks / rightClicks < -1.05)))
-  {
-    asservit();
-  }
-  else return;
-}
 
 
   bool checkValidData() // checking if the card type and index are the correct ones
@@ -1200,10 +1182,6 @@ void asservit_distance()
     
     //tester asservit()
     asservit();
-    //tester asservit_polaire()
-    //asservit_polaire()
-    //tester asservit_distance();
-    //asservit_distance();
     doSerial();
  
     // and, of course, blinking
